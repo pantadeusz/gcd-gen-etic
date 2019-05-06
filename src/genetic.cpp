@@ -47,7 +47,7 @@ auto ga = [](
               auto term_condition) -> vector<chromosome_t> {
     vector<chromosome_t> population = init_population();
     int iteration = 0;
-#pragma omp parallel for
+// #pragma omp parallel for
     for (size_t i = 0; i < population.size(); i++)
         population[i] = fitness(population[i]);
     while (term_condition(iteration, population)) {
@@ -57,7 +57,7 @@ auto ga = [](
         offspring = mutation(offspring);
         //population = merge_with_elite(offspring,elite);
         population = offspring;
-#pragma omp parallel for
+// #pragma omp parallel for
         for (size_t i = 0; i < population.size(); i++)
             population[i] = fitness(population[i]);
         
@@ -71,7 +71,7 @@ vector<chromosome_t> selection(vector<chromosome_t>& pop)
 {
     vector<chromosome_t> new_pop;
     std::uniform_int_distribution rand_dist(0, (int)pop.size() - 1);
-#pragma omp parallel for
+// #pragma omp parallel for
     for (size_t i = 0; i < pop.size(); i++) {
         chromosome_t specimen[2] = { pop.at(rand_dist(randgen)), pop.at(rand_dist(randgen)) };
         new_pop.push_back((specimen[0].first > specimen[1].first) ? specimen[0] : specimen[1]);
