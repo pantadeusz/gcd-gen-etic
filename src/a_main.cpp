@@ -18,8 +18,8 @@
 
 
 */
-#include "imgops.hpp"
 #include "genetic.hpp"
+#include "imgops.hpp"
 
 #include <chrono>
 #include <cmath>
@@ -50,17 +50,22 @@ int main(int argc, char** argv)
     std::list<shape_t> shapes = image_to_shapes(loaded_image);
     shapes = smoothen_shape_simple(shapes);
     shapes = smoothen_shape_simple(shapes);
-    for (auto &shape : shapes) {
-        for (auto &p: shape) {
-             p = p * 25.4 *(1.0/ dpi); 
+    // scale X and Y to the given resolution. 
+    // scale z to 1
+    // keep feedrate untouched
+    for (auto& shape : shapes) {
+        for (auto& p : shape) {
+            p[2] = p[2]/255.0;
+            p[0] = p[0] * 25.3999991872 * (1.0 / dpi);
+            p[1] = p[1] * 25.3999991872 * (1.0 / dpi);
         }
     }
-    for (auto &shape: shapes) {
+    for (auto& shape : shapes) {
         shape = optimize_path_dp(shape, 0.1);
     }
     shapes = tp::genetc_algorithm_optimize(shapes);
 
-    auto gcdlist = shapes_to_gcd(shapes,{10,10,1,0},{100,100,10,1});
+    auto gcdlist = shapes_to_gcd(shapes, { 10, 10, 1, 0 }, { 100, 100, 10, 1 });
     for (auto e : gcdlist) {
         cout << e << endl;
     }

@@ -40,11 +40,11 @@ TEST_CASE("std::string shapes_to_gcd(...);","[imgops][shapes_to_gcd]") {
     }
     SECTION("empty shape gives empty gcode") {
         auto ret = shapes_to_gcd({{{10,0,0,0}}},{2.0,2.0,2.0,1.0},{2.0,2.0,2.0,1.0});
-        REQUIRE(ret.size() == 6);
+        REQUIRE(ret.size() == 7);
     }
     SECTION("empty shape gives empty gcode") {
         auto ret = shapes_to_gcd({{{10,0,0,0},{10,20,0,0}}},{2.0,2.0,2.0,1.0},{2.0,2.0,2.0,1.0});
-        REQUIRE(ret.size() == 7);
+        REQUIRE(ret.size() == 8);
         std::string cmpto;
         for (auto e : ret) {
             cmpto = cmpto + e + "\n";
@@ -52,6 +52,7 @@ TEST_CASE("std::string shapes_to_gcd(...);","[imgops][shapes_to_gcd]") {
         REQUIRE(cmpto == R"(G0X0.000000Y0.000000Z5.000000
 G0X10.000000Y0.000000Z5.000000
 G0X10.000000Y0.000000Z0.000000
+G1X10.000000Y0.000000Z0.000000
 G1X10.000000Y20.000000Z0.000000
 G0X10.000000Y20.000000Z5.000000
 G0X0.000000Y0.000000Z5.000000

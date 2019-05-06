@@ -189,7 +189,7 @@ std::list<shape::shape_t> genetc_algorithm_optimize(
     std::list<shape::shape_t> init_list)
 {
 
-    int max_iterations = 100;
+    int max_iterations = 1000;
 
     std::vector<shape::shape_t> shapes(init_list.begin(), init_list.end());
     std::vector<int> init_order_shapes;

@@ -52,8 +52,8 @@ namespace shape {
 
         auto get_max_around = [&](auto x0, auto y0) {
             short max_found = 0;
-            for (int x = x0-1; x < (x0+2); x++) {
-                for (int y = y0-1; y < (y0+2); y++) {
+            for (int x = x0-1; x < ((int)x0+2); x++) {
+                for (int y = y0-1; y < ((int)y0+2); y++) {
                     max_found = std::max(max_found, image_data.at(y*width+x));
                 }
             }
@@ -65,7 +65,7 @@ namespace shape {
                 int nx = x + d[0];
                 int ny = y + d[1];
                 if ((get_max_around(nx,ny) > image_data.at(ny*width+nx)) && (ic_image_data.at(ny*width+nx) == 255)) {
-                    if ((nx < (width-1)) && (nx > 0) && (ny < (height -1)) && (ny > 0))
+                    if ((nx < ((int)width-1)) && (nx > 0) && (ny < ((int)height -1)) && (ny > 0))
                     {
                         return {nx,ny};
                     }
@@ -78,13 +78,13 @@ namespace shape {
             shape_t shape;
             int x = x0, y = y0;
             do {
-                shape.push_back({(double)x, (double)y,(double)image_data[y * width + x],0.0});
+                shape.push_back({(double)x, (double)y,((double)image_data[y * width + x]-255.0),0.0});
                 ic_image_data.at(y * width + x) = 0;
                 auto ncpos = next_edge_point(x,y);
                 if ((ncpos[0] == x) && (ncpos[1] == y)) return shape;
                 x = ncpos[0];
                 y = ncpos[1];
-                if (!((x < (width-1)) && (x > 0) && (y < (height -1)) && (y > 0))) return shape;
+                if (!((x < ((int)width-1)) && (x > 0) && (y < ((int)height -1)) && (y > 0))) return shape;
             } while (true);
         };
 
@@ -125,10 +125,12 @@ namespace shape {
         generic_position_t<double, 4> current_pos = { 0, 0, 0, 0 };
         for (const auto shape : shapes) {
             if (shape.size() > 0) {
-                for (auto e : shapes_to_gcd_jmp_to(current_pos, shape.at(0), z)) {
+                auto shape_start_pos = shape.at(0);
+                shape_start_pos[2] = 0.0;
+                for (auto e : shapes_to_gcd_jmp_to(current_pos, shape_start_pos, z)) {
                     ret.push_back(position_to_g(0, e));
                 }
-                for (auto e : std::vector<distance_t>(shape.begin() + 1, shape.end())) {
+                for (auto e : std::vector<distance_t>(shape.begin(), shape.end())) {
                     ret.push_back(position_to_g(1, e));
                 }
                 current_pos = shape.back();
