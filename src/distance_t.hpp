@@ -1,11 +1,11 @@
 /*
-    Raspberry Pi G-CODE interpreter
 
-    Copyright (C) 2019  Tadeusz Puźniakowski puzniakowski.pl
+    This is the gcode generator from image that uses genetic algorithm for optimization of path
+    Copyright (C) 2019  Tadeusz Puźniakowski
 
     This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
+    it under the terms of the GNU Affero General Public License as published
+    by the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
     This program is distributed in the hope that it will be useful,
@@ -15,6 +15,8 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+
 */
 
 

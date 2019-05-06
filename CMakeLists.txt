@@ -16,7 +16,7 @@ endif()
 
 include(CheckLibraryExists)
 
-set(CMAKE_CXX_FLAGS "-std=c++17 -Wall -Wextra")
+set(CMAKE_CXX_FLAGS "-std=c++17 -Wall -Wextra -fopenmp")
 set(CMAKE_CXX_FLAGS_DEBUG "-ggdb ")
 # consider also -flto
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -frename-registers -funroll-loops -DNDEBUG")
@@ -30,12 +30,6 @@ install(DIRECTORY src/ DESTINATION include/pngtogcd
 find_package(Catch2)
 find_package(Git)
 find_package(Threads)
-
-
-find_package(SDL2)
-if(SDL2_FOUND)
-  add_definitions(-DHAVE_SDL2)
-endif()
 
 
 # FIND_PACKAGE( OpenMP )
@@ -56,21 +50,16 @@ file(GLOB_RECURSE lib_SOURCES "src/*.cpp" "src/*/*.cpp")
 # file(GLOB_RECURSE pngtogcd_TESTS "tests/*.cpp")
 list(REMOVE_ITEM lib_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/a_main.cpp)
 
-add_library(pngtogcd SHARED ${lib_SOURCES} "thirdparty/lodepng/lodepng.cpp")
+# if you want library:: # add_library(pngtogcd SHARED ${lib_SOURCES} "thirdparty/lodepng/lodepng.cpp")
 add_executable(gengcd ${pngtogcd_SOURCES} ${lib_SOURCES} "thirdparty/lodepng/lodepng.cpp")
 target_link_libraries(gengcd ${CMAKE_THREAD_LIBS_INIT})
 
-if(SDL2_FOUND)
-  include_directories(${SDL2_INCLUDE_DIRS})
-  target_link_libraries(gengcd ${SDL2_LIBRARIES})
-endif()
-
-install (TARGETS pngtogcd DESTINATION lib)
+# if you want library:: # install (TARGETS pngtogcd DESTINATION lib)
 install (TARGETS gengcd DESTINATION bin)
 
 file(GLOB_RECURSE tests_SOURCES "${PROJECT_SOURCE_DIR}/tests/*_test.cpp" "${PROJECT_SOURCE_DIR}/tests/*/*_test.cpp")
-add_executable(tests ${tests_SOURCES} "tests/tests.cpp" "thirdparty/lodepng/lodepng.cpp" )
-target_link_libraries(tests pngtogcd ${CMAKE_THREAD_LIBS_INIT}  Catch2::Catch2)
+add_executable(tests ${tests_SOURCES} "tests/tests.cpp" "thirdparty/lodepng/lodepng.cpp" ${lib_SOURCES} )
+target_link_libraries(tests ${CMAKE_THREAD_LIBS_INIT}  Catch2::Catch2)
 include_directories("${PROJECT_SOURCE_DIR}/src")
 include_directories("${PROJECT_SOURCE_DIR}/tests")
 # add_test(NAME ${fn_target} COMMAND "${CMAKE_BINARY_DIR}/${fn_target}" WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}" )

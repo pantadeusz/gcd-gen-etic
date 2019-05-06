@@ -1,3 +1,24 @@
+/*
+
+    This is the gcode generator from image that uses genetic algorithm for optimization of path
+    Copyright (C) 2019  Tadeusz Puźniakowski
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published
+    by the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+
+*/
+
 #include "genetic.hpp"
 
 #include <random>
@@ -11,36 +32,35 @@ using std::vector;
 
 std::random_device m_seed;
 std::mt19937 randgen(m_seed());
-//std::uniform_int_distribution<int> m_distribution;
 
 // indeksy w liscie punktow do odwiedzenia
 using chromosome_t = std::pair<double, std::vector<int>>;
 
 auto mutation = [](auto e) { return e; };
 
-auto ga = [](int max_iterations,
+auto ga = [](
               auto init_population,
               auto fitness,
               auto selection,
               auto crossover,
-              auto mutation) -> vector<chromosome_t> {
+              auto mutation,
+              auto term_condition) -> vector<chromosome_t> {
     vector<chromosome_t> population = init_population();
     int iteration = 0;
-    for (auto& e : population)
-        e = fitness(e);
-    while (iteration < max_iterations) {
+#pragma omp parallel for
+    for (size_t i = 0; i < population.size(); i++)
+        population[i] = fitness(population[i]);
+    while (term_condition(iteration, population)) {
         auto parents = selection(population);
         //auto elite = get_elite(population);
         auto offspring = crossover(parents);
         offspring = mutation(offspring);
         //population = merge_with_elite(offspring,elite);
         population = offspring;
-        for (auto& e : population)
-            e = fitness(e);
-        std::cerr << "population[" << iteration << "]:";
+#pragma omp parallel for
         for (size_t i = 0; i < population.size(); i++)
-            std::cerr << " " << population[i].first;
-        std::cerr << std::endl;
+            population[i] = fitness(population[i]);
+        
         iteration++;
     }
 
@@ -51,8 +71,8 @@ vector<chromosome_t> selection(vector<chromosome_t>& pop)
 {
     vector<chromosome_t> new_pop;
     std::uniform_int_distribution rand_dist(0, (int)pop.size() - 1);
-    // #pragma omp parallel for
-    for (int i = 0; i < pop.size(); i++) {
+#pragma omp parallel for
+    for (size_t i = 0; i < pop.size(); i++) {
         chromosome_t specimen[2] = { pop.at(rand_dist(randgen)), pop.at(rand_dist(randgen)) };
         new_pop.push_back((specimen[0].first > specimen[1].first) ? specimen[0] : specimen[1]);
     }
@@ -129,17 +149,11 @@ vector<chromosome_t> crossover_one_pt(vector<chromosome_t>& parents)
             ret.push_back(a);
             ret.push_back(b);
             if (a0.second.size() != a.second.size()) {
-                std::cerr << "WRONG SIZE!!!\n";
                 throw std::invalid_argument("WRONG SIZES");
             }
             if (b0.second.size() != b.second.size()) {
-                std::cerr << "WRONG SIZE!!!\n";
                 throw std::invalid_argument("WRONG SIZES");
             }
-            //             print_list("A: ", parents[i].second, "\t -> \t");
-            //             print_list("", a.second, "\n");
-            //             print_list("B: ", parents[i + 1].second, "\t -> \t");
-            //             print_list("", b.second, "\n");
         } else {
             ret.push_back(a0);
             ret.push_back(b0);
@@ -174,10 +188,14 @@ vector<chromosome_t> mutation_swap(vector<chromosome_t>& parents)
 std::list<shape::shape_t> genetc_algorithm_optimize(
     std::list<shape::shape_t> init_list)
 {
+
+    int max_iterations = 100;
+
     std::vector<shape::shape_t> shapes(init_list.begin(), init_list.end());
     std::vector<int> init_order_shapes;
     for (int i = shapes.size() - 1; i >= 0; i--)
         init_order_shapes.push_back(i);
+
     auto fitness = [&](chromosome_t& chromosome) -> chromosome_t {
         chromosome_t ret = chromosome;
         double sum_distance = 0.1;
@@ -192,12 +210,20 @@ std::list<shape::shape_t> genetc_algorithm_optimize(
         return ret;
     };
 
-    auto result = ga(100,
-        [&]() { return init_population(init_list.size()*4, init_order_shapes); },
+    auto term_condition =         [&max_iterations](int iteration, auto& population) {
+            std::cerr << "population[" << iteration << "]:";
+            for (size_t i = 0; i < population.size(); i++)
+                std::cerr << " " << population[i].first;
+            std::cerr << std::endl;
+            return (iteration < max_iterations);
+        };
+    auto result = ga(
+        [&]() { return init_population(init_list.size() * 4, init_order_shapes); },
         fitness,
         selection,
         crossover_one_pt,
-        mutation_swap);
+        mutation_swap,
+        term_condition);
     auto best = result.front();
     for (auto& e : result) {
         if (e.first > best.first)
