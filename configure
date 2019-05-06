@@ -1,0 +1,18 @@
+#!/bin/bash
+
+#cmake -DCMAKE_INSTALL_PREFIX:PATH=./build/gcdapi
+
+mkdir -p buildmake/tests buildmake/build
+cd buildmake
+cmake –G"Unix Makefiles" ../
+cp -R ../tests/data tests/
+cd ..
+
+
+
+mkdir -p buildninja/tests buildninja/build
+cd buildninja
+cmake -GNinja ../ 
+cp -R ../tests/data tests/
+#-DCMAKE_MAKE_PROGRAM=/usr/bin/ninja
+cd ..
