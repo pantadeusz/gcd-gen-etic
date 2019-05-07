@@ -26,7 +26,7 @@ namespace tp {
 namespace shape {
 
 
-    std::list<shape_t> image_to_shapes(image_t& image)
+    std::list<shape_t> image_to_shapes(image_t& image, int tool_d_px)
     {
         std::list<shape_t> shapes = {};
         static std::vector<std::array<int,2>> directions_to_check = {
@@ -60,31 +60,48 @@ namespace shape {
             return max_found;
         };
         
-        auto next_edge_point = [&](int x, int y) -> std::array<int,2> {
-            for (auto & d: directions_to_move) {
+        auto next_edge_point = [&](int x, int y, int &p0) -> std::array<int,2> {
+            auto c = image_data.at(y*width+x);
+            std::tuple<unsigned char,int,int,int> max_found = {255,x,y,p0};
+            for (int i = 0; i < directions_to_move.size(); i++) {
+                auto d = directions_to_move[(p0+i)%directions_to_move.size()];
                 int nx = x + d[0];
                 int ny = y + d[1];
+                //(c == image_data.at(ny*width+nx)) && 
                 if ((get_max_around(nx,ny) > image_data.at(ny*width+nx)) && (ic_image_data.at(ny*width+nx) == 255)) {
                     if ((nx < ((int)width-1)) && (nx > 0) && (ny < ((int)height -1)) && (ny > 0))
                     {
-                        return {nx,ny};
+                        if (std::get<0>(max_found)>image_data.at(ny*width+nx)) {
+                            max_found = 
+                            {image_data.at(ny*width+nx),nx,ny,(p0+i+2+directions_to_move.size())%directions_to_move.size()};
+                        }
                     }
                 }
             }
-            return {x,y};
+            p0 = std::get<3>(max_found);
+            return {std::get<1>(max_found),std::get<2>(max_found)};
         };
 
         auto get_shape = [&](int x0, int y0) {
             shape_t shape;
-            int x = x0, y = y0;
+            int x = x0, y = y0, p0 = 0;
             do {
                 shape.push_back({(double)x, (double)y,((double)image_data[y * width + x]-255.0),0.0});
+                if (shape.size()>tool_d_px*3) {
+                     draw_circle(image_consumed,shape[shape.size()-tool_d_px*2][0], shape[shape.size()-tool_d_px*2][1], tool_d_px, 0);
+                }
                 ic_image_data.at(y * width + x) = 0;
-                auto ncpos = next_edge_point(x,y);
-                if ((ncpos[0] == x) && (ncpos[1] == y)) return shape;
+                auto ncpos = next_edge_point(x,y, p0);
+                if ((ncpos[0] == x) && (ncpos[1] == y)) {
+                    for (int i = 0; (i < shape.size()) && (i < tool_d_px*2); i++) 
+                    draw_circle(image_consumed,shape[shape.size()-tool_d_px*2][0], shape[shape.size()-tool_d_px*2][1], tool_d_px, 0);
+                    return shape;
+                }
                 x = ncpos[0];
                 y = ncpos[1];
-                if (!((x < ((int)width-1)) && (x > 0) && (y < ((int)height -1)) && (y > 0))) return shape;
+                if (!((x < ((int)width-1)) && (x > 0) && (y < ((int)height -1)) && (y > 0))) {
+                    return shape;
+                }
             } while (true);
         };
 

@@ -87,6 +87,7 @@ chromosome_t get_random_chromosome(const std::vector<int>& base_shapes)
 vector<chromosome_t> init_population(int pop_size, const std::vector<int>& base_shapes)
 {
     vector<chromosome_t> population;
+    population.reserve(pop_size);
     for (int i = 0; i < pop_size; i++) {
         population.push_back(get_random_chromosome(base_shapes));
     }
@@ -179,7 +180,8 @@ vector<chromosome_t> mutation_swap(vector<chromosome_t>& parents)
     return ret;
 }
 
-bool is_inside(shape::shape_t current_shape, shape::shape_t shape_to_test) {
+bool is_inside(shape::shape_t current_shape, shape::shape_t shape_to_test, double min_dist = 2) {
+    if ((shape_to_test.front()-shape_to_test.back()).length() > min_dist) return false;
     int x0=-1,y0=-1,x1=-1,y1=-1;
     for (auto e : shape_to_test) {
         if (x0 == -1) x0 = e[0];
@@ -213,31 +215,30 @@ std::list<shape::shape_t> genetc_algorithm_optimize(
         double sum_distance = 0.1;
         double penalty = 0;
         raspigcd::distance_t pos = {};
-        std::list<int> visited = {};
-        for (auto& e : chromosome.second) {
+        for (int idx = 0; idx < chromosome.second.size(); idx++) {
+            auto& e = chromosome.second[idx];
             if (shapes[e].size() > 0) {
                 sum_distance += (shapes[e].front() - pos).length();
                 pos = shapes[e].back();
-                for (auto v: visited) {
-                    if(is_inside(shapes[e],shapes[v])) {
+                for (int j = 0; j < idx; j++) {
+                    if(is_inside(shapes[e],shapes[chromosome.second[j]])) {
                         penalty += 1;
+                        break;
                     };
                 }
-                visited.push_back(e);
             }
         }
         ret.first = (1000.0 / sum_distance)/(1.0 + penalty);
-        //if (ret.first <= 0) ret.first = 0.001;
         return ret;
     };
 
     double best_fit = 0;
     int best_fit_iterations = 0;
     auto term_condition = [&](int iteration, auto& population) {
-        //std::cerr << "population[" << iteration << "]:";
-        //for (size_t i = 0; i < population.size(); i++)
-        //    std::cerr << " " << population[i].first;
-        //std::cerr << std::endl;
+        std::cerr << "population[" << iteration << "]:";
+        for (size_t i = 0; i < population.size(); i++)
+            std::cerr << " " << population[i].first;
+        std::cerr << std::endl;
         for (auto &[fit,v]:population) {
             if (fit > best_fit) {
                 best_fit = fit;
@@ -245,10 +246,14 @@ std::list<shape::shape_t> genetc_algorithm_optimize(
             }
         }
         best_fit_iterations++;
-        return ((iteration < max_iterations) && (best_fit_iterations < 30));
+        if (best_fit_iterations > 30) {
+            std::cerr << "best_fit_iterations hit at " << iteration << std::endl;
+            return false;
+        }
+        return (iteration < max_iterations);
     };
     auto result = ga(
-        [&]() { return init_population(init_list.size() * 5, init_order_shapes); },
+        [&]() { return init_population(std::min((int)init_list.size() * 6,100), init_order_shapes); },
         fitness,
         selection,
         crossover_one_pt,

@@ -33,7 +33,7 @@ namespace shape {
  * takes image, and finds edges. z is based on the color.
  * Black is the most bottom. White means the surface of the material.
  * */
-    std::list<shape_t> image_to_shapes(image_t& image);
+    std::list<shape_t> image_to_shapes(image_t& image, int tool_d_px=10);
 
     inline std::list<shape_t> smoothen_shape_simple(const std::list<shape_t>& shapes)
     {

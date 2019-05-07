@@ -47,7 +47,7 @@ int main(int argc, char** argv)
         std::cout << "image empty !" << std::get<0>(loaded_image) << " " << std::get<1>(loaded_image) << std::endl;
         return -1;
     }
-    std::list<shape_t> shapes = image_to_shapes(loaded_image);
+    std::list<shape_t> shapes = image_to_shapes(loaded_image,1.5/(25.3999991872 * (1.0 / dpi)));
     shapes = smoothen_shape_simple(shapes);
     shapes = smoothen_shape_simple(shapes);
     // scale X and Y to the given resolution. 
@@ -55,7 +55,7 @@ int main(int argc, char** argv)
     // keep feedrate untouched
     for (auto& shape : shapes) {
         for (auto& p : shape) {
-            p[2] = p[2]/255.0;
+            p[2] = 5.0*p[2]/255.0;
             p[0] = p[0] * 25.3999991872 * (1.0 / dpi);
             p[1] = p[1] * 25.3999991872 * (1.0 / dpi);
         }
@@ -63,6 +63,7 @@ int main(int argc, char** argv)
     for (auto& shape : shapes) {
         shape = optimize_path_dp(shape, 0.1);
     }
+    std::cout << "have " << shapes.size() << "shapes" << std::endl;
     shapes = tp::genetc_algorithm_optimize(shapes);
 
     auto gcdlist = shapes_to_gcd(shapes, { 10, 10, 1, 0 }, { 100, 100, 10, 1 });
