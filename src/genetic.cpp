@@ -36,8 +36,6 @@ std::mt19937 randgen(m_seed());
 // indeksy w liscie punktow do odwiedzenia
 using chromosome_t = std::pair<double, std::vector<int>>;
 
-auto mutation = [](auto e) { return e; };
-
 auto ga = [](
               auto init_population,
               auto fitness,
@@ -47,23 +45,20 @@ auto ga = [](
               auto term_condition) -> vector<chromosome_t> {
     vector<chromosome_t> population = init_population();
     int iteration = 0;
-// #pragma omp parallel for
+    #pragma omp parallel for
     for (size_t i = 0; i < population.size(); i++)
         population[i] = fitness(population[i]);
     while (term_condition(iteration, population)) {
         auto parents = selection(population);
-        //auto elite = get_elite(population);
         auto offspring = crossover(parents);
         offspring = mutation(offspring);
-        //population = merge_with_elite(offspring,elite);
         population = offspring;
-// #pragma omp parallel for
+        #pragma omp parallel for
         for (size_t i = 0; i < population.size(); i++)
             population[i] = fitness(population[i]);
-        
+
         iteration++;
     }
-
     return population;
 };
 
@@ -71,14 +66,16 @@ vector<chromosome_t> selection(vector<chromosome_t>& pop)
 {
     vector<chromosome_t> new_pop;
     std::uniform_int_distribution rand_dist(0, (int)pop.size() - 1);
-// #pragma omp parallel for
+    // #pragma omp parallel for
     for (size_t i = 0; i < pop.size(); i++) {
-        chromosome_t specimen[2] = { pop.at(rand_dist(randgen)), pop.at(rand_dist(randgen)) };
+        chromosome_t specimen[2] = {
+            pop.at(rand_dist(randgen)),
+            pop.at(rand_dist(randgen))
+        };
         new_pop.push_back((specimen[0].first > specimen[1].first) ? specimen[0] : specimen[1]);
     }
     return new_pop;
 }
-
 chromosome_t get_random_chromosome(const std::vector<int>& base_shapes)
 {
     chromosome_t ret = { 0.0, {} };
@@ -102,6 +99,7 @@ auto print_list = [](auto c, auto l, auto f) {
         std::cerr << "\t" << e;
     std::cerr << f;
 };
+
 vector<chromosome_t> crossover_one_pt(vector<chromosome_t>& parents)
 {
     std::uniform_int_distribution rand_dist(0, 100);
@@ -124,15 +122,12 @@ vector<chromosome_t> crossover_one_pt(vector<chromosome_t>& parents)
             for (int j = 0; j < a0.second.size(); j++) {
                 if (j < crosspoint) {
                     a.second.push_back(a0.second[j]);
+                    b.second.push_back(b0.second[j]);
                 } else {
                     std::vector<int>::iterator it = std::find(a.second.begin(), a.second.end(), b0.second[j]);
                     if (it == a.second.end())
                         a.second.push_back(b0.second[j]);
-                }
-                if (j < crosspoint)
-                    b.second.push_back(b0.second[j]);
-                else {
-                    std::vector<int>::iterator it = std::find(b.second.begin(), b.second.end(), a0.second[j]);
+                    it = std::find(b.second.begin(), b.second.end(), a0.second[j]);
                     if (it == b.second.end())
                         b.second.push_back(a0.second[j]);
                 }
@@ -161,7 +156,6 @@ vector<chromosome_t> crossover_one_pt(vector<chromosome_t>& parents)
     }
     return ret;
 }
-
 vector<chromosome_t> mutation_swap(vector<chromosome_t>& parents)
 {
     std::uniform_int_distribution rand_dist(0, 100);
@@ -185,11 +179,29 @@ vector<chromosome_t> mutation_swap(vector<chromosome_t>& parents)
     return ret;
 }
 
+bool is_inside(shape::shape_t current_shape, shape::shape_t shape_to_test) {
+    int x0=-1,y0=-1,x1=-1,y1=-1;
+    for (auto e : shape_to_test) {
+        if (x0 == -1) x0 = e[0];
+        if (y0 == -1) y0 = e[1];
+        if (x1 == -1) x1 = e[0];
+        if (y1 == -1) y1 = e[1];
+        x0 = std::min(x0,(int)e[0]);
+        y0 = std::min(y0,(int)e[1]);
+        x1 = std::max(x1,(int)e[0]);
+        y1 = std::max(y1,(int)e[1]);
+    }
+    return (x0 < current_shape.front()[0]) && 
+    (x1 > current_shape.front()[0]) &&
+    (y0 < current_shape.front()[1])  &&
+    (y1 > current_shape.front()[1]); 
+}
+
 std::list<shape::shape_t> genetc_algorithm_optimize(
     std::list<shape::shape_t> init_list)
 {
 
-    int max_iterations = 1000;
+    int max_iterations = 100;
 
     std::vector<shape::shape_t> shapes(init_list.begin(), init_list.end());
     std::vector<int> init_order_shapes;
@@ -199,26 +211,44 @@ std::list<shape::shape_t> genetc_algorithm_optimize(
     auto fitness = [&](chromosome_t& chromosome) -> chromosome_t {
         chromosome_t ret = chromosome;
         double sum_distance = 0.1;
+        double penalty = 0;
         raspigcd::distance_t pos = {};
+        std::list<int> visited = {};
         for (auto& e : chromosome.second) {
             if (shapes[e].size() > 0) {
                 sum_distance += (shapes[e].front() - pos).length();
                 pos = shapes[e].back();
+                for (auto v: visited) {
+                    if(is_inside(shapes[e],shapes[v])) {
+                        penalty += 1;
+                    };
+                }
+                visited.push_back(e);
             }
         }
-        ret.first = 1000.0 / sum_distance;
+        ret.first = (1000.0 / sum_distance)/(1.0 + penalty);
+        //if (ret.first <= 0) ret.first = 0.001;
         return ret;
     };
 
-    auto term_condition =         [&max_iterations](int iteration, auto& population) {
-            std::cerr << "population[" << iteration << "]:";
-            for (size_t i = 0; i < population.size(); i++)
-                std::cerr << " " << population[i].first;
-            std::cerr << std::endl;
-            return (iteration < max_iterations);
-        };
+    double best_fit = 0;
+    int best_fit_iterations = 0;
+    auto term_condition = [&](int iteration, auto& population) {
+        //std::cerr << "population[" << iteration << "]:";
+        //for (size_t i = 0; i < population.size(); i++)
+        //    std::cerr << " " << population[i].first;
+        //std::cerr << std::endl;
+        for (auto &[fit,v]:population) {
+            if (fit > best_fit) {
+                best_fit = fit;
+                best_fit_iterations = 0;
+            }
+        }
+        best_fit_iterations++;
+        return ((iteration < max_iterations) && (best_fit_iterations < 30));
+    };
     auto result = ga(
-        [&]() { return init_population(init_list.size() * 4, init_order_shapes); },
+        [&]() { return init_population(init_list.size() * 5, init_order_shapes); },
         fitness,
         selection,
         crossover_one_pt,
@@ -232,6 +262,7 @@ std::list<shape::shape_t> genetc_algorithm_optimize(
     std::list<shape::shape_t> result_shapes;
     for (auto i : best.second)
         result_shapes.push_back(shapes[i]);
+    std::cerr << "Best fitness is " << best.first << std::endl;
     return result_shapes;
 }
 } // namespace tp
